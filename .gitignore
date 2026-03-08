@@ -1,6 +1,7 @@
 # Virtual Environment
 .venv/
 .venv
+venv
 # ChromaDB local storage
 chroma_db/
 
@@ -20,4 +21,11 @@ __pycache__/
 # macOS
 .DS_Store
 
+# Live network logs
+live_network_logs.jsonl
 
+# Incident history
+data/incident_history.md
+
+# Audit trail
+logs/audit_trail.jsonl
