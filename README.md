@@ -1,5 +1,3 @@
-
-```html
 <div align="center">
   <h1 style="font-size: 3.5em; font-weight: 800; letter-spacing: 2px; margin-bottom: 0;">ΛXIOS</h1>
   <h3 style="font-weight: 400; color: #64748B; margin-top: 5px; letter-spacing: 1px;">Automated Network Intelligence</h3>
