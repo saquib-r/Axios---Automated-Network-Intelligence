@@ -19,6 +19,8 @@ from collections import deque
 from contextlib import asynccontextmanager
 from pathlib import Path
 import joblib
+import numpy as np
+from sklearn.linear_model import LinearRegression
 
 # ML Model Configuration
 ML_MODEL_PATH = Path("models/telecom_anomaly_model.pkl")
@@ -252,6 +254,24 @@ async def telemetry_background_task():
                 continue
             TELEMETRY_BUFFER.append(point)
             LATENCY_HISTORY.append(point.get("latency_ms", 0))
+
+            try:
+                router_name = point.get("router")
+                recent_latency = [p.get("latency_ms", 0) for p in TELEMETRY_BUFFER if p.get("router") == router_name][-15:]
+                if len(recent_latency) > 1:
+                    X = np.arange(len(recent_latency)).reshape(-1, 1)
+                    y = np.array(recent_latency)
+                    model = LinearRegression()
+                    model.fit(X, y)
+                    next_t = np.array([[len(recent_latency) + 4]])
+                    pred_latency = max(0, float(model.predict(next_t)[0]))
+                else:
+                    pred_latency = point.get("latency_ms", 0)
+            except Exception:
+                pred_latency = point.get("latency_ms", 0)
+            
+            point["predicted_latency"] = round(pred_latency, 2)
+
             write_jsonl_log(point)
 
             is_bad = False

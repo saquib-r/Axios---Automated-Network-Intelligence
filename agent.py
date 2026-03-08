@@ -56,6 +56,8 @@ def write_config(config: dict):
 # ─────────────────────────────────────────────
 # 1. LLM
 # ─────────────────────────────────────────────
+ACTION_CACHE = {}
+
 api_key = os.getenv("GOOGLE_API_KEY", "").strip()
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key, temperature=0.3)
 
@@ -400,6 +402,21 @@ def reason_and_decide_node(state: NetworkAgentState):
     diag = state.get("diagnostic_result", "No diagnostics available.")
     blast = state.get("blast_radius_result", "No blast radius data.")
 
+    state_signature = f"{p.get('router')}_{diag}"
+    if state_signature in ACTION_CACHE:
+        cached = ACTION_CACHE[state_signature]
+        action = cached.get('recommended_action')
+        args = cached.get('action_args')
+        risk_level = cached.get('risk_level')
+        fast_path_log = "⚡ [FAST-PATH] Semantic Cache Hit! Bypassing LLM API to save latency."
+        return {
+            "llm_reasoning": fast_path_log,
+            "recommended_action": action,
+            "action_args": args,
+            "risk_level": risk_level,
+            "reasoning_log": [f"Reasoner [{now_ist()}]: {fast_path_log}\nAction='{action}', Risk={risk_level.upper()}, Args={args}."],
+        }
+
     prompt = f"""
     You are an Autonomous Network Operations AI for IndiaNet ISP.
     You operate under PARTIAL OBSERVABILITY — you were initially BLIND to the root cause.
@@ -577,6 +594,14 @@ def learn_node(state: NetworkAgentState):
     router = p.get("router", "Unknown")
     metric = p.get("metric", "Unknown")
     value = p.get("value", "Unknown")
+    diag = state.get("diagnostic_result", "No diagnostics available.")
+
+    state_signature = f"{router}_{diag}"
+    ACTION_CACHE[state_signature] = {
+        "recommended_action": action,
+        "action_args": state.get("action_args", "{}"),
+        "risk_level": state.get("risk_level", "low")
+    }
 
     post_mortem = f"Incident on {router}: {metric} spiked to {value}. Action taken: {action}. Result: {result}. Date: {now_ist()}"
 

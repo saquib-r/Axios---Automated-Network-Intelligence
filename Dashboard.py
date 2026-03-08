@@ -142,6 +142,7 @@ def trace_class(line):
 # ─────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## Network Controllers")
+    st.markdown("🔮 **Predictive Forecasting**: Live Linear Regression active")
 
     # ─── LIVE ROUTER CONFIG (Digital Twin view) ───
     config_data = fetch_api("/network-config")
@@ -324,6 +325,10 @@ if full_data and "data" in full_data and full_data["data"]:
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=time_labels, y=[p["latency_ms"] for p in chart_pts],
                              mode="lines", name="Latency (ms)", line=dict(color="#A8C7FA", width=2)))
+    
+    if any("predicted_latency" in p for p in chart_pts):
+        fig.add_trace(go.Scatter(x=time_labels, y=[p.get("predicted_latency", p.get("latency_ms", 0)) for p in chart_pts],
+                                 mode="lines", name="Predicted (t+5)", line=dict(color="#FFFFFF", width=2, dash="dot")))
     fig.add_trace(go.Scatter(x=time_labels, y=[p["packet_loss_pct"] for p in chart_pts],
                              mode="lines", name="Pkt Loss (%)", line=dict(color="#F28B82", width=2)))
     fig.add_trace(go.Scatter(x=time_labels, y=[p.get("cpu_utilization_pct", 0) for p in chart_pts],

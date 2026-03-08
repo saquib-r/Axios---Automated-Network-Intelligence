@@ -25,7 +25,7 @@
   },
   "Core-Router-Chennai": {
     "status": "online",
-    "current_route": "Primary-Link-A",
+    "current_route": "Backup-via-Core-Router-Bangalore",
     "is_congested": false,
     "bgp_down": false,
     "cpu_spiking": false,
