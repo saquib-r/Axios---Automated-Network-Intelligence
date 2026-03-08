@@ -1,6 +1,15 @@
-# 🤖 NetOps Autonomous Agent — Closed-Loop Network Operations System
+<div align="center">
+  <h1 style="font-size: 3.5em; font-weight: 800; letter-spacing: 2px; margin-bottom: 0;">ΛXIOS</h1>
+  <h3 style="font-weight: 400; color: #64748B; margin-top: 5px; letter-spacing: 1px;">Automated Network Intelligence</h3>
+  <br>
+  <p>
+    <i>AXIOS- An AI-native autonomous network operations platform for a simulated ISP.</i>
+  </p>
+</div>
 
-An AI-powered **autonomous network operations** platform for a simulated ISP called **IndiaNet**. The system detects network anomalies in real-time using a **custom-trained Random Forest ML model**, reasons about root causes using an LLM (Gemini) operating under **partial observability**, assesses **blast radius** before taking action, retrieves relevant SOPs from a knowledge base (ChromaDB), and **automatically resolves issues** via a control plane — all in a closed loop with **human-in-the-loop approval** for high-risk actions.
+<p align="center">
+  The system detects network anomalies in real-time using a custom-trained <b>Random Forest ML model</b>, reasons about root causes using an LLM operating under <b>partial observability</b>, assesses blast radius before taking action, and automatically resolves issues via a control plane. To optimize latency and API costs, it utilizes a <b>Semantic NLP Fast-Path Cache</b> to bypass the LLM for known issues, keeping human operators in the loop only for high-risk actions.
+</p>
 
 ---
 
@@ -8,286 +17,58 @@ An AI-powered **autonomous network operations** platform for a simulated ISP cal
 
 | Feature | Description |
 |---|---|
-| **Partial Observability** | The agent is *blind* to the root cause at alert time — it only receives a symptom (e.g., "latency spike on Core-Router-Mumbai"). It must actively call `run_device_diagnostics` to discover the actual anomaly flags before deciding on a fix. |
-| **Blast Radius Assessment** | Before any mitigation, the agent calls `calculate_blast_radius` which reads `data/topology.json` to compute how many downstream nodes/links are affected. Impact is classified as CRITICAL / HIGH / MODERATE / LOW. |
-| **Custom ML Anomaly Detection** | A Random Forest model (`models/telecom_anomaly_model.pkl`) trained on ISP telemetry data detects anomalies from latency, packet loss, CPU utilization, and BGP flap features. Falls back to statistical Z-score if the model isn't loaded. |
-| **Human-in-the-Loop** | High-risk actions (BGP resets, NOC escalations) halt the LangGraph pipeline at an interrupt checkpoint, requiring explicit NOC approval via the Streamlit dashboard before execution. |
-| **Digital Twin (Config-as-State)** | `network_config.json` is the single source of truth. Agent tools write directly to this file — no HTTP middleman. The telemetry engine reads it live to reflect the current network state. |
-| **RAG-Powered Reasoning** | SOPs and past incident reports are embedded in ChromaDB and retrieved at reasoning time, giving the LLM context-aware decision support. |
+| **Semantic NLP Fast-Path Cache** | 🧠 Uses `scikit-learn` (TF-IDF & Cosine Similarity) to vectorize incoming anomalies. If an anomaly is >90% similar to a previously solved incident, the agent bypasses the LLM API and executes the cached fix instantly in milliseconds. |
+| **Partial Observability** | The agent is *blind* to the root cause at alert time — it only receives a symptom (e.g., "latency spike on Core-Router"). It must actively call diagnostic tools to discover actual anomaly flags before acting. |
+| **Blast Radius Assessment** | Before mitigation, the agent computes how many downstream nodes/links are affected based on the live topology, classifying impact as CRITICAL / HIGH / MODERATE / LOW. |
+| **Custom ML Anomaly Detection** | A Random Forest model (`models/telecom_anomaly_model.pkl`) trained on ISP telemetry data detects anomalies from latency, packet loss, CPU utilization, and BGP flap features. |
+| **Human-in-the-Loop** | High-risk actions (e.g., BGP resets) halt the LangGraph pipeline at an interrupt gate, requiring explicit NOC approval via the Streamlit dashboard before execution. |
+| **Digital Twin (Config-as-State)** | `network_config.json` is the single source of truth. Agent tools write directly to this file. The telemetry engine reads it live to reflect the current network state. |
+| **RAG-Powered Reasoning** | SOPs and past incident reports are embedded in ChromaDB and retrieved at reasoning time, giving the LLM context-aware decision support for novel issues. |
 
 ---
 
 ## 📁 Project Structure
 
-```
-CC2/
-├── main.py                # FastAPI backend — telemetry, anomaly detection, control plane
+```text
+AXIOS/
+├── main.py                # FastAPI backend — telemetry, ML detection, control plane
 ├── agent.py               # LangGraph AI agent — observe → investigate → reason → act
-├── Dashboard.py           # Streamlit NOC dashboard — live monitoring UI
+├── app.py                 # Streamlit NOC dashboard — live Digital Twin UI
+├── run_all_tests.py       # Automated integration test & QA suite
 ├── train_model.py         # ML model training script (Random Forest)
 ├── setup_db.py            # One-time ChromaDB knowledge base ingestion
-├── network_config.json    # Digital Twin state file (source of truth)
+├── network_config.json    # Digital Twin state file (Source of Truth)
 ├── requirements.txt       # Python dependencies
 ├── .env                   # Google API key for Gemini LLM & embeddings
-├── .gitignore             # Git ignore rules
 ├── data/
-│   ├── topology.json      # Network topology (6 routers, 10 links)
+│   ├── topology.json      # Network topology (Fully meshed Core + Edge layout)
 │   ├── sops.md            # SOPs & past incident reports
-│   ├── incident_history.md # Agent-generated post-mortems (auto-updated)
-│   ├── safety_policy.json # Risk levels and autonomous decision boundaries
 │   └── telecom_training_data.csv # Training data for the ML model
-├── docs/
-│   └── SAFETY_CONSTRAINTS.md # Formal safety constraints and audit requirements
-├── models/
-│   └── telecom_anomaly_model.pkl # Trained Random Forest model
-├── chroma_db/             # ChromaDB vector store (generated by setup_db.py)
-├── logs/
-│   └── audit_trail.jsonl  # Immutable audit log of all actions and decisions
-├── static/
-│   └── stress_test.html   # Standalone stress test & chaos engineering page
-├── pages/
-│   └── 1_Chaos_Engineering.py # Streamlit chaos engineering page
-├── ARCHITECTURE.md        # Detailed design patterns and decision boundaries
-└── live_network_logs.jsonl # Running JSONL log of all telemetry points
-```
-
+└── models/
+    └── telecom_anomaly_model.pkl # Trained Random Forest model
 ---
 
-## 📌 File Naming Note
+## 📁 Ml pipeline
 
-**Important:** The actual Streamlit dashboard file is **`Dashboard.py`** (capital D), not `app.py`. References to `app.py` in earlier documentation are outdated. Always run:
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1. ML Model detects anomaly → Triggers Agent (Symptom Only)            │
+│  2. OBSERVE: Logs symptom alert (blind to root cause)                   │
+│  3. RETRIEVE: Queries ChromaDB for SOPs                                 │
+│  4. INVESTIGATE: Discovers actual flags & calculates Blast Radius       │
+│  5. SEMANTIC ROUTER:                                                    │
+│       ├─▶ [TF-IDF Similarity > 90%] ──▶ FAST-PATH (Bypass LLM) ──┐      │
+│       └─▶ [Similarity < 90%] ─────────▶ GEMINI LLM REASONING     │      │
+│  6. [APPROVE]: Halts for NOC human-in-the-loop if HIGH risk      │      │
+│  7. ACT: Executes mitigation tool directly on network_config.json│      │
+│  8. VERIFY: Health check, rolls back if resolution failed     ◀──┘      │
+│  9. LEARN: Caches successful resolution for future NLP matching         │
+└─────────────────────────────────────────────────────────────────────────┘
+## How to Run
 
-```bash
-streamlit run Dashboard.py
-```
-
----
-
-## 📄 File Details
-
-### `main.py` — FastAPI Backend & Telemetry Engine
-
-The **central server** that simulates a live ISP network and orchestrates everything.
-
-| Responsibility | Details |
-|---|---|
-| **Telemetry Generation** | Background task generates synthetic network metrics (latency, packet loss, CPU utilization, BGP flaps) every 2 seconds for all routers. Metrics are distorted when anomaly flags are active. |
-| **ML Anomaly Detection** | Uses the trained Random Forest model to classify each telemetry point as normal/anomalous. Falls back to Z-score + threshold rules if the model isn't loaded. |
-| **Digital Twin State** | Reads/writes `network_config.json` as the single source of truth for all router flags (status, congestion, BGP, CPU, interface flapping). |
-| **Agent Triggering** | Automatically calls `start_agent()` from `agent.py` when an anomaly is detected, passing a **symptom-only payload** (no root-cause flags — enforcing partial observability). |
-| **Human-in-the-Loop** | Manages pending approvals queue. Exposes `/api/approve` and `/api/reject` endpoints for the NOC dashboard. |
-| **Stress Testing** | Supports bulk injection, pre-built stress scenarios (cascade failure, random chaos, full meltdown), and serves a standalone stress test HTML page. |
-| **Backup/Rollback** | Config backup before agent actions and rollback on verification failure. |
-
-**Key Endpoints:**
-
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/telemetry?limit=N` | GET | Fetch recent telemetry + current network state |
-| `/topology` | GET | Return the network topology graph |
-| `/network-config` | GET | Return raw `network_config.json` |
-| `/agent-logs` | GET | Return all agent resolution logs |
-| `/api/simulate-anomaly` | POST | Inject a single anomaly on a router |
-| `/api/bulk-inject` | POST | Inject multiple anomalies at once |
-| `/api/stress-scenario` | POST | Run a pre-built stress scenario |
-| `/api/pending-approvals` | GET | List actions awaiting NOC approval |
-| `/api/approve` | POST | Approve a high-risk action |
-| `/api/reject` | POST | Reject a high-risk action |
-| `/api/reset-all` | POST | Reset all routers to healthy defaults |
-| `/api/config/backup` | POST | Backup current config |
-| `/api/config/rollback` | POST | Rollback to backed-up config |
-| `/api/config/verify_health` | GET | Check if a router is healthy |
-| `/api/audit-log?limit=N` | GET | **NEW** — Fetch recent audit trail entries (immutable) |
-| `/api/action/{action_id}/rollback-status` | GET | **NEW** — Get rollback status for a specific action |
-| `/api/agent/observability-state` | GET | **NEW** — Get current agent and network observability state |
-| `/stress-test` | GET | Serve the standalone stress test page |
-
----
-
-### `agent.py` — LangGraph AI Agent (Partial Observability + Blast Radius)
-
-The **autonomous reasoning engine** built with LangGraph. The agent operates under **partial observability** — it is initially blind to the root cause and must investigate before acting.
-
-**Pipeline (StateGraph):**
-
-```
-observe → retrieve → investigate → reason_and_decide ──[low risk]──→ act → verify → learn → END
-                                                       └─[high risk]─→ human_approval → act → verify → learn → END
-                                                                                                  └─[unhealthy]─→ rollback
-```
-
-| Node | Purpose |
-|---|---|
-| **`observe`** | Receives the symptom-only alert (e.g., "latency spike on Core-Router-Mumbai"). **Does NOT read `network_config.json`** — the agent is blind to root cause flags. |
-| **`retrieve`** | Queries ChromaDB for relevant SOPs and past incidents using the anomaly as a search query (RAG). Returns top 3 matching documents. |
-| **`investigate`** | 🔍 **NEW** — Calls `run_device_diagnostics` to extract the router's actual anomaly flags, then calls `calculate_blast_radius` to assess downstream impact. This is the step where the agent "sees" the root cause for the first time. |
-| **`reason_and_decide`** | Sends symptom + diagnostic results + blast radius + SOPs to Gemini LLM. The LLM must reference the blast radius in its reasoning and select the correct mitigation tool. |
-| **`human_approval`** | Halts the pipeline for high-risk actions (BGP reset, NOC escalation). Uses LangGraph's `interrupt_before` — the pipeline truly pauses until the NOC approves via the Streamlit dashboard. |
-| **`act`** | Executes the chosen mitigation tool, which writes directly to `network_config.json`. |
-| **`verify`** | Calls the health check API to confirm the fix was effective. Routes to rollback if verification fails. |
-| **`rollback`** | Restores the backed-up config if the fix made things worse, then routes back to human_approval for manual intervention. |
-| **`learn`** | Writes a post-mortem to `data/incident_history.md` and embeds it into ChromaDB for future RAG retrieval. |
-
-**Investigative Tools (called deterministically by `investigate_node`):**
-
-| Tool | Description |
-|---|---|
-| `run_device_diagnostics(router_name)` | Reads `network_config.json` and returns the specific router's status, current route, and all anomaly flags as JSON. This is how the agent discovers the root cause. |
-| `calculate_blast_radius(router_name)` | Reads `data/topology.json`, counts connected downstream nodes and links, classifies impact as CRITICAL / HIGH / MODERATE / LOW based on router type and connectivity. |
-
-**Mitigation Tools (selected by the LLM, executed in `act_node`):**
-
-| Tool | Use Case | Risk |
-|---|---|---|
-| `reroute_traffic(source, target)` | Congestion / high latency | LOW |
-| `restart_interface(router, interface)` | CPU spike / interface flapping | LOW |
-| `adjust_qos(router, policy)` | Packet loss / DDoS | LOW |
-| `reset_bgp_session(router, peer)` | BGP down | **HIGH** |
-| `escalate_to_noc(summary, router)` | Complex / unresolvable issues | **HIGH** |
-
----
-
-### `app.py` — Streamlit NOC Dashboard
-
-The **real-time monitoring UI** that connects to the FastAPI backend.
-
----
-
-### `train_model.py` — ML Model Training
-
-Trains a **Random Forest Classifier** on `data/telecom_training_data.csv` to detect network anomalies.
-
-- **Features:** latency_ms, packet_loss_pct, cpu_utilization, bgp_flaps
-- **Output:** Binary classification (normal=0 / anomaly=1)
-- **Saves to:** `models/telecom_anomaly_model.pkl`
-
----
-
-### `setup_db.py` — ChromaDB Knowledge Base Setup
-
-A **one-time setup script** that ingests the SOPs and past incident reports into a ChromaDB vector store for RAG retrieval.
-
-1. Reads `data/sops.md`
-2. Splits the markdown into chunks using `RecursiveCharacterTextSplitter`
-3. Generates embeddings using Google's `gemini-embedding-001` model
-4. Stores the chunks in a local ChromaDB collection called `network_sops`
-5. Runs a verification query to confirm ingestion
-
-**Run once before starting the system:** `python setup_db.py`
-
----
-
-### `data/topology.json` — Network Topology
-
-Defines the **simulated ISP network graph** with 6 routers and 6 links:
-
-- **Core Routers (4):** Mumbai, Delhi, Hyderabad, Chennai — backbone infrastructure
-- **Edge Routers (2):** Delhi, Kolkata — customer-facing
-- **Links (6):** Primary and backup connections between routers with bandwidth specs (10–100 Gbps)
-
-Used by `main.py` for the router list, `/topology` endpoint, and by the agent's `calculate_blast_radius` tool.
-
----
-
-### `data/sops.md` — Standard Operating Procedures & Incident History
-
-The **knowledge base** containing SOPs and past incident reports:
-
-- **SOP-001 to SOP-006:** Resolution procedures for high latency, link flapping, packet loss, router unreachability, QoS degradation, and BGP session failure.
-- **Past Incidents:** Real-world-style incident reports with root causes, resolutions, and lessons learned.
-
-Ingested into ChromaDB by `setup_db.py` and retrieved by the agent during the RAG step.
-
----
-
-### `requirements.txt` — Dependencies
-
-| Package | Purpose |
-|---|---|
-| `fastapi` / `uvicorn` | Backend web server |
-| `langchain` / `langchain-google-genai` / `langchain-community` / `langchain-text-splitters` | LLM framework & Google Gemini integration |
-| `langgraph` | Stateful agent graph orchestration |
-| `chromadb` | Vector database for RAG |
-| `streamlit` / `streamlit-agraph` / `plotly` | Dashboard UI, topology graph, & interactive charts |
-| `requests` / `python-dotenv` | HTTP client & environment variable loading |
-| `google-generativeai` | Google Generative AI SDK |
-| `joblib` / `scikit-learn` / `pandas` / `numpy` | ML model training, serialization, & data processing |
-
----
-
-## 🔗 How the Files Are Interconnected
-
-```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                     CLOSED-LOOP ARCHITECTURE (Partial Observability)             │
-│                                                                                  │
-│  ┌───────────┐  injects    ┌────────────┐  reads topology   ┌─────────────────┐ │
-│  │  app.py   │──anomaly──▶│  main.py   │◀────────────────── │     data/       │ │
-│  │ Streamlit │◀─telemetry──│  FastAPI   │                    │ topology.json   │ │
-│  │ Dashboard │◀─agent logs─│  Backend   │                    │ sops.md         │ │
-│  │           │──approve───▶│            │                    │ training_data   │ │
-│  └───────────┘             └──────┬─────┘                    └─────────────────┘ │
-│                                   │                                               │
-│                  ML detects anomaly│& triggers with SYMPTOM ONLY                  │
-│                                   ▼                                               │
-│  ┌──────────────────────────────────────────────────────────┐                     │
-│  │                    agent.py (LangGraph)                   │                     │
-│  │                                                          │                     │
-│  │  1. OBSERVE      → symptom alert (blind to root cause)   │                     │
-│  │  2. RETRIEVE     → query ChromaDB for SOPs          ─────┼──▶ chroma_db/      │
-│  │  3. INVESTIGATE  → run_device_diagnostics (reads config) │                     │
-│  │                  → calculate_blast_radius (reads topology)│                     │
-│  │  4. REASON       → LLM selects mitigation tool           │                     │
-│  │  5. [APPROVE]    → NOC human-in-the-loop (if HIGH risk)  │                     │
-│  │  6. ACT          → writes fix to network_config.json     │                     │
-│  │  7. VERIFY       → health check, rollback if failed      │                     │
-│  │  8. LEARN        → post-mortem to ChromaDB + history file │                     │
-│  └──────────────────────────────────────────────────────────┘                     │
-│                                   │                                               │
-│              writes directly to   │  network_config.json (Digital Twin)           │
-│                                   ▼                                               │
-│  ┌────────────────────────────────────────────────────────────┐                    │
-│  │  network_config.json — SINGLE SOURCE OF TRUTH              │                    │
-│  │  Telemetry engine reads this → generates realistic metrics │                    │
-│  │  Dashboard reads this → shows live router status           │                    │
-│  └────────────────────────────────────────────────────────────┘                    │
-└──────────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Step-by-Step Flow
-
-1. **Setup (one-time):**
-   - `python setup_db.py` — Ingest SOPs into ChromaDB.
-   - `python train_model.py` — Train the anomaly detection model (optional, pre-trained model included).
-
-2. **Backend starts:** `main.py` loads the topology, ML model, and begins generating telemetry every 2 seconds.
-
-3. **Dashboard connects:** `app.py` polls the FastAPI backend for telemetry, network state, and agent logs, rendering live charts and the topology map.
-
-4. **Anomaly injection:** User injects anomalies via Streamlit sidebar, Chaos Engineering page, or Stress Test page → backend sets the anomaly flag in `network_config.json`.
-
-5. **ML Detection:** The background task runs each telemetry point through the Random Forest model. If anomalous, it triggers the agent with a **symptom-only payload** (metric + value, no root cause flags).
-
-6. **Agent pipeline (Partial Observability):**
-   - **Observe:** Logs the symptom alert — agent is *blind* to root cause.
-   - **Retrieve:** Queries ChromaDB for relevant SOPs.
-   - **Investigate:** Calls `run_device_diagnostics` to discover actual flags + `calculate_blast_radius` to assess impact.
-   - **Reason & Decide:** LLM receives diagnosed root cause, blast radius, and SOPs — selects the correct mitigation tool.
-   - **Human Approval:** If high risk (BGP reset), pipeline halts until NOC approves via dashboard.
-   - **Act:** Writes the fix directly to `network_config.json`.
-   - **Verify:** Health check — rolls back if the fix failed.
-   - **Learn:** Saves post-mortem to incident history and ChromaDB.
-
-7. **Resolution:** The digital twin state clears the anomaly flags, telemetry normalizes, and the dashboard reflects the resolution.
-
----
-
-## 🚀 How to Run
-
-```bash
 # 1. Create and activate virtual environment
-python3 -m venv venv
-source venv/bin/activate
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # 2. Install dependencies
 pip install -r requirements.txt
@@ -295,95 +76,13 @@ pip install -r requirements.txt
 # 3. Set up your API key
 echo "GOOGLE_API_KEY=your_key_here" > .env
 
-# 4. Set up the knowledge base (one-time)
+# 4. Set up the vector knowledge base (one-time)
 python setup_db.py
 
-# 5. Train the ML model (optional — pre-trained model included)
-python train_model.py
-
-# 6. Start the FastAPI backend
+# 5. Start the FastAPI backend
 python main.py
 
-# 7. Start the Streamlit dashboard (in a separate terminal)
-source venv/bin/activate
-streamlit run Dashboard.py
-```
+# 6. Start the Streamlit dashboard (in a separate terminal)
+streamlit run app.py
 
-> **Note:** Ensure your `GOOGLE_API_KEY` is set in the `.env` file before running. The backend runs on `http://127.0.0.1:8000` and the dashboard on `http://localhost:8501`.
-
----
-
-## ⏱️ 60-Second Demo Walkthrough
-
-Follow this sequence to see the full autonomous agent loop in action:
-
-### Minute 0-10: Setup & Dashboard
-1. Start backend: `python main.py`
-2. Start dashboard: `streamlit run Dashboard.py`
-3. Open dashboard at `http://localhost:8501`
-4. Observe the live topology map and metric cards — all routers should show "online" and "healthy"
-
-### Minute 10-20: Inject an Anomaly
-1. On the dashboard sidebar, look for the **Anomaly Injection** section
-2. Select a router (e.g., `Core-Router-Mumbai`)
-3. Select an anomaly type (e.g., `congestion`)
-4. Click **Inject Anomaly**
-5. Observe the router's card turn **red** (indicating anomaly)
-6. Check the **Telemetry Chart** — latency spike appears
-
-### Minute 20-40: Watch the Agent Respond
-1. **Observe:** Agent log shows `[OBSERVE] Latency spike on Core-Router-Mumbai`
-2. **Retrieve:** Agent retrieves relevant SOPs from knowledge base
-3. **Investigate:** Agent runs `run_device_diagnostics` — discovers root cause is congestion; runs `calculate_blast_radius` → estimates impact on 8 downstream nodes (MODERATE)
-4. **Reason & Decide:** LLM decides to reroute (LOW-risk action; auto-executes)
-5. **Act:** Agent writes to `network_config.json` — traffic switched to backup route
-6. **Verify:** Agent health checks the router — success! Anomaly flags cleared
-7. **Learn:** Agent writes post-mortem to `data/incident_history.md`
-
-### Minute 40-50: Verify Resolution
-1. Router card turns **green** (healthy)
-2. Telemetry normalizes
-3. Check **Agent Action Log** — full trace shown (Observe → Investigate → Act → Verify)
-4. Optionally, visit `/api/audit-log` endpoint to see immutable audit trail
-
-### Minute 50-60: Test High-Risk Action Approval
-1. Inject **BGP down** anomaly (HIGH-risk tool required)
-2. Agent diagnostic detects BGP failure
-3. Agent action log shows **[HUMAN APPROVAL]** — pipeline halted
-4. Look for pending approval in the **Approval Panel**
-5. Click **Approve** → Agent continues and executes BGP reset
-6. Verify resolution same as above
-
-**Total Time:** ~60 seconds to see the full loop: anomaly injection → autonomous diagnosis → safe action → verification → learning.
-
----
-
-## 📋 Safety Documentation
-
-The agent operates under explicit **safety constraints** and **decision boundaries**:
-
-- **[ARCHITECTURE.md](./ARCHITECTURE.md)** — Read this first for design patterns, blast radius assessment, and autonomous decision tree
-- **[docs/SAFETY_CONSTRAINTS.md](./docs/SAFETY_CONSTRAINTS.md)** — Formal safety policies, risk levels (low/high/forbidden), audit trail requirements, and deployment checklist
-- **[data/safety_policy.json](./data/safety_policy.json)** — Safety policy configuration (risk classifications, approval thresholds, cooldown policies)
-
-### Key Safety Features
-
-| Feature | Purpose | Details |
-|---|---|---|
-| **Partial Observability** | Enforce active diagnosis | Agent blind to root cause at alert time; must investigate first |
-| **Blast Radius Assessment** | Prevent cascading failures | Topology-aware impact calculation; decisions based on downstream nodes affected |
-| **Human-in-the-Loop** | Guard high-risk actions | BGP resets and escalations require explicit NOC approval via dashboard |
-| **Auto-Rollback** | Limit damage from mistakes | Verification failures trigger automatic config restoration |
-| **Audit Trail** | Compliance & accountability | Every action logged immutably to `logs/audit_trail.jsonl` |
-
----
-
----
-
-## 🧪 Testing & Chaos Engineering
-
-- **Inject single anomaly:** Use the Streamlit sidebar or `POST /api/simulate-anomaly`
-- **Bulk injection:** `POST /api/bulk-inject` with multiple anomalies
-- **Stress scenarios:** `POST /api/stress-scenario` with `cascade_failure`, `random_chaos`, or `full_meltdown`
-- **Standalone stress page:** Visit `http://127.0.0.1:8000/stress-test`
-- **Reset all:** `POST /api/reset-all` to restore all routers to healthy defaults
+Note: Ensure your GOOGLE_API_KEY is set in the .env file before running. The backend runs on http://127.0.0.1:8000 and the dashboard on http://localhost:8501.
