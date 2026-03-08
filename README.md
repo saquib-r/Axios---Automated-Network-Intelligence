@@ -1,9 +1,12 @@
+---
+
+```html
 <div align="center">
   <h1 style="font-size: 3.5em; font-weight: 800; letter-spacing: 2px; margin-bottom: 0;">ΛXIOS</h1>
   <h3 style="font-weight: 400; color: #64748B; margin-top: 5px; letter-spacing: 1px;">Automated Network Intelligence</h3>
   <br>
   <p>
-    <i>AXIOS- An AI-native autonomous network operations platform for a simulated ISP.</i>
+    <i>An AI-native autonomous network operations platform for a simulated ISP.</i>
   </p>
 </div>
 
@@ -46,9 +49,41 @@ AXIOS/
 │   └── telecom_training_data.csv # Training data for the ML model
 └── models/
     └── telecom_anomaly_model.pkl # Trained Random Forest model
+
+```
+
 ---
 
-## 📁 Ml pipeline
+## 📄 Core Services Overview
+
+### 1. `main.py` — FastAPI Backend & Telemetry Engine
+
+The central orchestrator that simulates the live ISP network. Built with heavy exception-handling to ensure chaos engineering tests never crash the server.
+
+* **Telemetry Generation:** Generates synthetic network metrics every 2 seconds.
+* **ML Anomaly Detection:** Runs telemetry through the Random Forest model. If anomalous, dynamically sets the router status to `"offline"`.
+* **Agent Triggering:** Automatically calls the LangGraph agent in an async thread, passing a *symptom-only* payload.
+* **Human-in-the-Loop:** Manages pending approvals via `/api/approve` and `/api/reject`.
+
+### 2. `agent.py` — LangGraph Cognitive Engine
+
+The autonomous reasoning engine.
+
+* **Investigative Tools:** `run_device_diagnostics` (discovers root cause) and `calculate_blast_radius` (assesses downstream impact).
+* **Semantic Routing Cache:** Extracts symptoms, vectorizes them via TF-IDF, and calculates Cosine Similarity against past fixes. Cache hits bypass the LLM entirely.
+* **Mitigation Tools:** `reroute_traffic`, `restart_interface`, `adjust_qos`, `reset_bgp_session`. Tools execute by directly mutating `network_config.json` and restoring `"status": "online"`.
+
+### 3. `app.py` — Streamlit NOC Dashboard
+
+The real-time monitoring UI that acts as a Digital Twin.
+
+* **Live Topology Map:** Interactive `agraph` network map. Dynamically parses `-via-` routing strings to draw redundant edge-to-core connections. Failing nodes instantly render as pulsing red.
+* **Agent Action Log:** Real-time trace of the LangGraph state machine, highlighting Semantic Cache Hits and LLM reasoning.
+* **Simulation Control:** Panel to inject simulated anomalies (CPU spikes, Congestion, BGP drops) directly into the state file.
+
+---
+
+## 🔗 The Agentic Loop
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -64,8 +99,14 @@ AXIOS/
 │  8. VERIFY: Health check, rolls back if resolution failed     ◀──┘      │
 │  9. LEARN: Caches successful resolution for future NLP matching         │
 └─────────────────────────────────────────────────────────────────────────┘
-## How to Run
 
+```
+
+---
+
+## 🚀 How to Run
+
+```bash
 # 1. Create and activate virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -85,4 +126,10 @@ python main.py
 # 6. Start the Streamlit dashboard (in a separate terminal)
 streamlit run app.py
 
-Note: Ensure your GOOGLE_API_KEY is set in the .env file before running. The backend runs on http://127.0.0.1:8000 and the dashboard on http://localhost:8501.
+```
+
+> **Note:** Ensure your `GOOGLE_API_KEY` is set in the `.env` file before running. The backend runs on `http://127.0.0.1:8000` and the dashboard on `http://localhost:8501`.
+
+```
+
+```
